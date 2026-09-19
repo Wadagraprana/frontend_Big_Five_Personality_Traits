@@ -5,7 +5,7 @@ import { getAnalysis } from "~/lib/mock-api"
 
 export async function loader({ params }: Route.LoaderArgs) {
     try {
-        return await getAnalysis(params.jobId)
+        return await getAnalysis(params.jobId || "")
     } catch (error) {
         throw new Response(error instanceof Error ? error.message : "Analisis tidak ditemukan.", { status: 404 })
     }

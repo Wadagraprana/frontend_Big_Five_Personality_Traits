@@ -8,7 +8,7 @@ interface StepperProps {
 
 function StepIcon({ status }: { status: PipelineStep["status"] }) {
     if (status === "done") return <CheckIcon aria-label="Selesai" data-icon="inline-start" />
-    if (status === "active") return <LoaderCircleIcon aria-label="Sedang berjalan" data-icon="inline-start" />
+    if (status === "active") return <LoaderCircleIcon aria-label="Sedang berjalan" data-icon="inline-start" className="animate-spin" />
     if (status === "failed") return <XIcon aria-label="Gagal" data-icon="inline-start" />
     return <Clock3Icon aria-label="Menunggu" data-icon="inline-start" />
 }
@@ -20,8 +20,8 @@ export function Stepper({ steps }: StepperProps) {
                 <li
                     key={step.key}
                     className={`flex items-center gap-2 rounded-lg border p-3 ${step.status === "active" ? "border-primary font-semibold" :
-                            step.status === "done" ? "bg-primary text-primary-foreground" :
-                                "bg-secondary text-muted-foreground"
+                        step.status === "done" ? "bg-primary text-primary-foreground" :
+                            "bg-secondary text-muted-foreground"
                         }`}
                 >
                     <StepIcon status={step.status} />

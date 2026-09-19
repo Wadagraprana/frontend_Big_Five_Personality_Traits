@@ -72,7 +72,7 @@ export function ProcessScreen({ initialJob }: ProcessScreenProps) {
             <Stepper steps={job.steps} />
             <Progress value={job.progress} aria-label="Kemajuan analisis">
                 <ProgressLabel>Kemajuan analisis</ProgressLabel>
-                <ProgressValue>{(formattedValue) => `${formattedValue ?? Math.round(job.progress)}%`}</ProgressValue>
+                <ProgressValue>{(formattedValue) => `${formattedValue ?? Math.round(job.progress)}`}</ProgressValue>
             </Progress>
             <p aria-live="polite" className="text-sm text-muted-foreground">
                 {job.progress}% — perkiraan sisa waktu ± {job.etaSeconds ?? 0} detik
