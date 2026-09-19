@@ -6,7 +6,7 @@ import { GuidePanel } from "~/components/input/guide-panel"
 import { UploadDropzone } from "~/components/input/upload-dropzone"
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert"
 import { Button } from "~/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card"
+import { Card, CardContent } from "~/components/ui/card"
 import { Checkbox } from "~/components/ui/checkbox"
 import { Label } from "~/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs"
@@ -19,9 +19,7 @@ const minDurationSeconds = 15
 const maxDurationSeconds = 60
 const maxFileSizeBytes = 100 * 1024 * 1024
 
-// Makin kecil pembagi, makin sensitif meter suara.
 const audioLevelDivisor = 16
-// Batasi pembaruan state level suara (~15 kali per detik) agar render tidak berlebihan.
 const audioLevelUpdateIntervalMs = 66
 
 function validateExtension(file: File) {
@@ -57,7 +55,7 @@ export function InputScreen() {
     const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
     const animationFrameRef = useRef<number | null>(null)
     const lastLevelUpdateRef = useRef(0)
-    // Ref yang mencerminkan state, agar cleanup saat unmount selalu membaca nilai terbaru.
+
     const streamRef = useRef<MediaStream | null>(null)
     const recordedVideoUrlRef = useRef<string | undefined>(undefined)
     const [mode, setMode] = useState<InputMode>("record")
@@ -87,9 +85,6 @@ export function InputScreen() {
         return () => window.clearInterval(interval)
     }, [isRecording])
 
-    // Cleanup HANYA saat komponen dilepas. Jangan tambahkan `stream` atau
-    // `recordedVideoUrl` ke dependensi: cleanup akan ikut berjalan setiap state
-    // itu berubah dan mematikan AudioContext serta loop pengukuran suara.
     useEffect(() => {
         return () => {
             streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -141,7 +136,6 @@ export function InputScreen() {
             setPermission("denied")
             return
         }
-        // Pastikan tidak ada stream atau loop lama yang tertinggal saat mencoba ulang.
         stopMedia()
         setPermission("pending")
         let nextStream: MediaStream | undefined
@@ -150,7 +144,6 @@ export function InputScreen() {
             const audioContext = new AudioContext()
             const analyser = audioContext.createAnalyser()
             analyser.fftSize = 256
-            // Simpan source di ref agar tidak dibersihkan garbage collector.
             const source = audioContext.createMediaStreamSource(nextStream)
             source.connect(analyser)
             await audioContext.resume()
@@ -249,49 +242,108 @@ export function InputScreen() {
     const canStart = consent && videoReady && fetcher.state === "idle"
 
     return (
-        <div className="flex flex-col gap-6">
-            <header className="flex flex-col gap-2">
-                <h1 className="text-2xl font-semibold min-[640px]:text-3xl">
-                    <span className="min-[640px]:hidden">Analisis Kepribadian</span>
-                    <span className="hidden min-[640px]:inline">Analisis Kepribadian dari Wajah & Suara</span>
+        <div className="mx-auto max-w-300 space-y-6">
+            {/* Header dengan typography scale yang lebih terstruktur */}
+            <header className="space-y-1">
+                <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                    Analisis Kepribadian dari Wajah & Suara
                 </h1>
-                <p className="hidden text-muted-foreground min-[640px]:block">
-                    Rekam langsung atau unggah video berdurasi 15–60 detik
+                <p className="text-sm text-muted-foreground sm:text-base">
+                    Rekam langsung atau unggah video berdurasi 15–60 detik untuk memulai pemrosesan data.
                 </p>
             </header>
-            <div className="grid gap-6 min-[1024px]:grid-cols-[minmax(0,1fr)_18rem]">
-                <Card>
-                    <CardHeader><CardTitle>Input video</CardTitle></CardHeader>
-                    <CardContent className="flex flex-col gap-6">
-                        <Tabs value={mode} onValueChange={(value) => setMode(value as InputMode)}>
-                            <TabsList className="w-full">
-                                <TabsTrigger value="record"><span className="min-[640px]:hidden">Rekam</span><span className="hidden min-[640px]:inline">Rekam Langsung</span></TabsTrigger>
-                                <TabsTrigger value="upload"><span className="min-[640px]:hidden">Unggah</span><span className="hidden min-[640px]:inline">Unggah Video</span></TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="record" className="flex flex-col gap-4">
-                                <CameraPreview videoRef={videoRef} permission={permission} isRecording={isRecording} elapsedSeconds={elapsedSeconds} recordedVideoUrl={recordedVideoUrl} onRetry={() => void requestMedia()} />
-                                <AudioLevelMeter level={audioLevel} active={permission === "granted" && isRecording} />
-                                <Button type="button" variant={isRecording ? "outline" : "default"} disabled={permission !== "granted" || (isRecording && elapsedSeconds === 0)} onClick={isRecording ? stopRecording : startRecording}>
-                                    {isRecording ? "Berhenti" : "Mulai Merekam"}
-                                </Button>
-                            </TabsContent>
-                            <TabsContent value="upload">
-                                <UploadDropzone fileName={uploadName} error={uploadError} onFile={handleUpload} />
-                            </TabsContent>
-                        </Tabs>
-                        <div className="flex items-start gap-3">
-                            <Checkbox id="consent" checked={consent} onCheckedChange={handleConsentChange} />
-                            <Label htmlFor="consent">Saya setuju data wajah & suara diproses untuk penelitian</Label>
-                        </div>
-                        {uploadError && mode === "record" && <Alert><AlertTitle>Video belum siap</AlertTitle><AlertDescription>{uploadError}</AlertDescription></Alert>}
-                        {fetcher.data === undefined && fetcher.state === "idle" && fetcher.formData && <p role="alert">Analisis tidak dapat dimulai.</p>}
-                        <Button type="button" size="lg" className="w-full" disabled={!canStart} onClick={submitAnalysis}>
-                            {fetcher.state === "submitting" ? "Menyiapkan analisis..." : "Mulai Analisis ▶"}
-                        </Button>
-                        <p className="text-sm text-muted-foreground">Data hanya dipakai untuk penelitian dan dapat dihapus kapan saja.</p>
-                    </CardContent>
-                </Card>
-                <GuidePanel />
+
+            {/* Layout Grid */}
+            <div className="grid gap-6 lg:grid-cols-12">
+                <div className="lg:col-span-8">
+                    <Card className="rounded-none bg-transparent py-0 ring-0 min-[640px]:rounded-xl min-[640px]:bg-card min-[640px]:py-(--card-spacing) min-[640px]:ring-1 min-[640px]:ring-foreground/10 mb-4">
+                        <CardContent className="space-y-2 px-0 min-[640px]:px-(--card-spacing)">
+                            <Tabs value={mode} onValueChange={(value) => setMode(value as InputMode)}>
+                                <TabsList className="grid w-full grid-cols-2">
+                                    <TabsTrigger value="record">Rekam Langsung</TabsTrigger>
+                                    <TabsTrigger value="upload">Unggah Video</TabsTrigger>
+                                </TabsList>
+
+                                <TabsContent value="record" className="mt-4 space-y-4">
+                                    <div className="overflow-hidden rounded-lg border bg-black/5">
+                                        <CameraPreview
+                                            videoRef={videoRef}
+                                            permission={permission}
+                                            isRecording={isRecording}
+                                            elapsedSeconds={elapsedSeconds}
+                                            recordedVideoUrl={recordedVideoUrl}
+                                            onRetry={() => void requestMedia()}
+                                        />
+                                    </div>
+
+                                    <AudioLevelMeter level={audioLevel} active={permission === "granted" && isRecording} />
+
+                                    <Button
+                                        type="button"
+                                        variant={isRecording ? "destructive" : "default"}
+                                        className="w-full"
+                                        disabled={permission !== "granted" || (isRecording && elapsedSeconds === 0)}
+                                        onClick={isRecording ? stopRecording : startRecording}
+                                    >
+                                        {isRecording ? "Berhenti Merekam" : "Mulai Merekam"}
+                                    </Button>
+                                </TabsContent>
+
+                                <TabsContent value="upload" className="mt-4">
+                                    <UploadDropzone fileName={uploadName} error={uploadError} onFile={handleUpload} />
+                                </TabsContent>
+                            </Tabs>
+                        </CardContent>
+                    </Card>
+
+                    {/* Persetujuan & Notifikasi */}
+                    <Card>
+                        <CardContent className="space-y-2">
+                            <div className="flex items-start space-x-2">
+                                <Checkbox
+                                    id="consent"
+                                    checked={consent}
+                                    onCheckedChange={handleConsentChange}
+                                    className="mt-0.5"
+                                />
+                                <div className="space-y-1 leading-none">
+                                    <Label htmlFor="consent" className="text-sm font-medium leading-snug cursor-pointer">
+                                        Saya setuju data wajah & suara diproses untuk penelitian
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">
+                                        Data hanya dipakai untuk penelitian dan dapat dihapus kapan saja.
+                                    </p>
+                                </div>
+                            </div>
+                            {uploadError && mode === "record" && (
+                                <Alert variant="destructive">
+                                    <AlertTitle>Video belum siap</AlertTitle>
+                                    <AlertDescription>{uploadError}</AlertDescription>
+                                </Alert>
+                            )}
+
+                            {fetcher.data === undefined && fetcher.state === "idle" && fetcher.formData && (
+                                <Alert variant="destructive">
+                                    <AlertDescription>Analisis tidak dapat dimulai.</AlertDescription>
+                                </Alert>
+                            )}
+
+                            <Button
+                                type="button"
+                                className="w-full"
+                                disabled={!canStart}
+                                onClick={submitAnalysis}
+                            >
+                                {fetcher.state === "submitting" ? "Menyiapkan analisis..." : "Mulai Analisis"}
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Panel Panduan Samping */}
+                <div className="lg:col-span-4">
+                    <GuidePanel />
+                </div>
             </div>
         </div>
     )
